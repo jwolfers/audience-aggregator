@@ -17,8 +17,8 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 // Default settings
 const DEFAULT_SETTINGS = {
-    provider: 'google',
-    model: 'gemini-2.5-flash',
+    provider: process.env.GOOGLE_AI_KEY ? 'google' : process.env.OPENAI_API_KEY ? 'openai' : process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'google',
+    model: process.env.GOOGLE_AI_KEY ? 'gemini-2.5-flash' : process.env.OPENAI_API_KEY ? 'gpt-4.1-mini' : process.env.ANTHROPIC_API_KEY ? 'claude-haiku-4-5-20251001' : 'gemini-2.5-flash',
     apiKeys: { openai: '', anthropic: '', google: '' },
     defaultNameDisplay: 'first',
     systemPrompt: `You are an expert at synthesizing audience responses during live lectures and presentations. You analyze free-text answers and produce clear, concise summaries organized by theme. You always return valid JSON.`,
