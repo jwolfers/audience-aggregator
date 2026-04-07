@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Respond</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --abyss: #0e4a53;
+            --surf: #2f9e97;
+            --sun: #d9a315;
+            --coral: #d93a43;
+            --algae: #006b2e;
+            --orchid: #8e4aa0;
+            --ink: #0b0b0a;
+            --shell: #ffffff;
+            --surf-tint: #a8ecef;
+            --bg: #f5f7f7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--ink);
+        }
+
+        .header {
+            background: var(--abyss);
+            padding: 16px 20px;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--surf), var(--sun), var(--coral), var(--algae), var(--orchid));
+        }
+
+        .header-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--surf-tint);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+
+        .card {
+            background: var(--shell);
+            border-radius: 16px;
+            padding: 28px 24px;
+            box-shadow: 0 2px 12px rgba(14, 74, 83, 0.08);
+            border: 1px solid #e4e8e8;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--abyss);
+            line-height: 1.4;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #556;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e4e8e8;
+            border-radius: 10px;
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            font-size: 1rem;
+            color: var(--ink);
+            transition: border-color 0.2s;
+            outline: none;
+            background: var(--shell);
+        }
+
+        .form-input:focus {
+            border-color: var(--surf);
+        }
+
+        .form-input::placeholder {
+            color: #aab;
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--surf);
+            color: var(--shell);
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 4px;
+        }
+
+        .submit-btn:hover {
+            background: var(--abyss);
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Success state */
+        .success-state {
+            display: none;
+            text-align: center;
+            padding: 32px 16px;
+        }
+
+        .success-state.visible {
+            display: block;
+            animation: fadeInUp 0.4s ease;
+        }
+
+        .success-check {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--algae);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .success-check svg {
+            width: 36px;
+            height: 36px;
+            stroke: white;
+            stroke-width: 3;
+            fill: none;
+        }
+
+        .success-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--abyss);
+            margin-bottom: 8px;
+        }
+
+        .success-subtitle {
+            font-size: 0.95rem;
+            color: #556;
+        }
+
+        .submit-another-btn {
+            margin-top: 20px;
+            padding: 10px 24px;
+            background: transparent;
+            color: var(--surf);
+            border: 2px solid var(--surf);
+            border-radius: 10px;
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .submit-another-btn:hover {
+            background: var(--surf);
+            color: var(--shell);
+        }
+
+        /* No question state */
+        .no-question {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .no-question-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+
+        .no-question h2 {
+            font-size: 1.1rem;
+            color: var(--abyss);
+            margin-bottom: 8px;
+        }
+
+        .no-question p {
+            font-size: 0.9rem;
+            color: #889;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #889;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e4e8e8;
+            border-top-color: var(--surf);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        /* Error */
+        .error-msg {
+            color: var(--coral);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">Audience Response</div>
+    </div>
+
+    <div class="container">
+        <!-- Loading state -->
+        <div class="card" id="loading-state">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading question...</p>
+            </div>
+        </div>
+
+        <!-- No active question -->
+        <div class="card" id="no-question-state" style="display:none;">
+            <div class="no-question">
+                <div class="no-question-icon">&#128172;</div>
+                <h2>No active question</h2>
+                <p>The presenter hasn't started a question yet. Please check back shortly.</p>
+            </div>
+        </div>
+
+        <!-- Response form -->
+        <div class="card" id="form-state" style="display:none;">
+            <div class="question-text" id="question-text"></div>
+
+            <form id="response-form">
+                <div class="form-group" id="name-group">
+                    <label class="form-label" for="name-input">Your name</label>
+                    <input type="text" id="name-input" class="form-input" placeholder="Enter your name" autocomplete="name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="answer-input">Your response</label>
+                    <textarea id="answer-input" class="form-input" placeholder="Type your answer here..." required></textarea>
+                </div>
+
+                <div class="error-msg" id="error-msg"></div>
+                <button type="submit" class="submit-btn" id="submit-btn">Send</button>
+            </form>
+        </div>
+
+        <!-- Success state -->
+        <div class="card" id="success-state" style="display:none;">
+            <div class="success-state visible">
+                <div class="success-check">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <div class="success-title">Response submitted!</div>
+                <div class="success-subtitle">Thank you for participating.</div>
+                <button class="submit-another-btn" id="another-btn">Submit another response</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loadingState = document.getElementById('loading-state');
+        const noQuestionState = document.getElementById('no-question-state');
+        const formState = document.getElementById('form-state');
+        const successState = document.getElementById('success-state');
+        const questionText = document.getElementById('question-text');
+        const nameGroup = document.getElementById('name-group');
+        const nameInput = document.getElementById('name-input');
+        const answerInput = document.getElementById('answer-input');
+        const form = document.getElementById('response-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const anotherBtn = document.getElementById('another-btn');
+
+        let activeQuestion = null;
+
+        function showState(state) {
+            [loadingState, noQuestionState, formState, successState].forEach(el => el.style.display = 'none');
+            state.style.display = 'block';
+        }
+
+        async function loadQuestion() {
+            showState(loadingState);
+            try {
+                const resp = await fetch('/api/active');
+                const data = await resp.json();
+                if (!data.active && !data.id) {
+                    showState(noQuestionState);
+                    // Poll every 5 seconds for a new question
+                    setTimeout(loadQuestion, 5000);
+                    return;
+                }
+                activeQuestion = data;
+                questionText.textContent = data.text;
+
+                // Show/hide name field based on question config
+                if (data.nameDisplay === 'anonymous') {
+                    nameGroup.style.display = 'none';
+                } else {
+                    nameGroup.style.display = 'block';
+                }
+
+                // Restore name from localStorage if available
+                const savedName = localStorage.getItem('respondent_name');
+                if (savedName) nameInput.value = savedName;
+
+                showState(formState);
+            } catch (err) {
+                showState(noQuestionState);
+                setTimeout(loadQuestion, 5000);
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMsg.style.display = 'none';
+
+            const answer = answerInput.value.trim();
+            if (!answer) {
+                errorMsg.textContent = 'Please enter a response.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+
+            try {
+                const body = { answer };
+                const name = nameInput.value.trim();
+                if (name) {
+                    body.name = name;
+                    localStorage.setItem('respondent_name', name);
+                }
+
+                const resp = await fetch('/api/respond', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Failed to submit');
+                }
+
+                showState(successState);
+                answerInput.value = '';
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send';
+            }
+        });
+
+        anotherBtn.addEventListener('click', () => {
+            showState(formState);
+            answerInput.focus();
+        });
+
+        // Start
+        loadQuestion();
+    </script>
+</body>
+</html>
