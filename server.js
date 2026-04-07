@@ -7,8 +7,10 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Data paths
-const DATA_DIR = path.join(__dirname, 'data');
+// Data paths — use Render persistent disk if available, else local data/
+const DATA_DIR = process.env.DATA_DIR
+    ? path.join(process.env.DATA_DIR, 'audience-aggregator')
+    : path.join(__dirname, 'data');
 const RESPONSES_DIR = path.join(DATA_DIR, 'responses');
 const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
