@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audience Aggregator</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1418,7 +1418,7 @@ function formatName(fullName, format) {
 
 // ─── Questions ──────────────────────────────────────────────────────
 async function loadQuestions() {
-    const resp = await fetch('/api/questions');
+    const resp = await fetch('api/questions');
     questions = await resp.json();
     renderQuestions();
 }
@@ -1508,14 +1508,14 @@ async function saveQuestion() {
     const body = { text, nameDisplay, summarizeCount, identifyPrompt, includeExplanations };
 
     if (editingQuestionId) {
-        await fetch(`/api/questions/${editingQuestionId}`, {
+        await fetch(`api/questions/${editingQuestionId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         showToast('Question updated', 'success');
     } else {
-        await fetch('/api/questions', {
+        await fetch('api/questions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -1534,13 +1534,13 @@ function editQuestion(id) {
 
 async function deleteQuestion(id) {
     if (!confirm('Delete this question and all its responses?')) return;
-    await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+    await fetch(`api/questions/${id}`, { method: 'DELETE' });
     showToast('Question deleted');
     loadQuestions();
 }
 
 async function activateQuestion(id) {
-    await fetch(`/api/questions/${id}/activate`, { method: 'POST' });
+    await fetch(`api/questions/${id}/activate`, { method: 'POST' });
     showToast('Question activated', 'success');
     loadQuestions();
 }
@@ -1552,7 +1552,7 @@ async function duplicateQuestion(id) {
     const nextRound = round ? parseInt(round[1]) + 1 : 2;
     const newText = round ? q.text.replace(/Round \d+:/, `Round ${nextRound}:`) : `Round 2: ${q.text}`;
 
-    await fetch('/api/questions', {
+    await fetch('api/questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...q, id: undefined, text: newText, active: false, createdAt: undefined })
@@ -1563,7 +1563,7 @@ async function duplicateQuestion(id) {
 
 // ─── Collect Answers ────────────────────────────────────────────────
 async function loadCollectView() {
-    const resp = await fetch('/api/active');
+    const resp = await fetch('api/active');
     const active = await resp.json();
 
     if (!active.id) {
@@ -1586,7 +1586,7 @@ async function loadCollectView() {
 
     // SSE for live count
     if (activeSSE) activeSSE.close();
-    activeSSE = new EventSource(`/api/responses/${active.id}/stream`);
+    activeSSE = new EventSource(`api/responses/${active.id}/stream`);
     activeSSE.onmessage = (e) => {
         const data = JSON.parse(e.data);
         const countEl = document.getElementById('response-count');
@@ -1631,10 +1631,10 @@ function updateTimerDisplay() {
 }
 
 async function downloadCSV() {
-    const resp = await fetch('/api/active');
+    const resp = await fetch('api/active');
     const active = await resp.json();
     if (!active.id) return;
-    window.open(`/api/responses/${active.id}/csv`, '_blank');
+    window.open(`api/responses/${active.id}/csv`, '_blank');
 }
 
 async function toggleRawAnswers() {
@@ -1644,11 +1644,11 @@ async function toggleRawAnswers() {
         return;
     }
 
-    const resp = await fetch('/api/active');
+    const resp = await fetch('api/active');
     const active = await resp.json();
     if (!active.id) return;
 
-    const data = await (await fetch(`/api/responses/${active.id}`)).json();
+    const data = await (await fetch(`api/responses/${active.id}`)).json();
     const nameDisplay = active.nameDisplay || 'first_last_initial';
 
     div.innerHTML = data.responses.length === 0 ? '<p style="color:var(--muted); text-align:center;">No responses yet.</p>' :
@@ -1663,18 +1663,18 @@ async function toggleRawAnswers() {
 
 async function clearResponses() {
     if (!confirm('Clear all responses for the active question? This cannot be undone.')) return;
-    const resp = await fetch('/api/active');
+    const resp = await fetch('api/active');
     const active = await resp.json();
     if (!active.id) return;
     // We'll clear by sending an empty response file
-    await fetch(`/api/responses/${active.id}/clear`, { method: 'POST' });
+    await fetch(`api/responses/${active.id}/clear`, { method: 'POST' });
     document.getElementById('response-count').textContent = '0';
     showToast('Responses cleared');
 }
 
 // ─── Analysis ───────────────────────────────────────────────────────
 async function loadAnalysisView() {
-    const resp = await fetch('/api/questions');
+    const resp = await fetch('api/questions');
     questions = await resp.json();
 
     const select = document.getElementById('analysis-question-select');
@@ -1684,7 +1684,7 @@ async function loadAnalysisView() {
 
     // Load existing analysis if available
     if (select.value) {
-        const analysisResp = await fetch(`/api/analysis/${select.value}`);
+        const analysisResp = await fetch(`api/analysis/${select.value}`);
         const data = await analysisResp.json();
         if (data.result) {
             currentAnalysis = data;
@@ -1706,7 +1706,7 @@ async function runAnalysis() {
     document.getElementById('no-analysis').style.display = 'none';
 
     try {
-        const resp = await fetch(`/api/analyze/${questionId}`, { method: 'POST' });
+        const resp = await fetch(`api/analyze/${questionId}`, { method: 'POST' });
         if (!resp.ok) {
             const err = await resp.json();
             throw new Error(err.error);
@@ -1866,7 +1866,7 @@ const MODEL_DEFAULTS = {
 };
 
 async function loadSettings() {
-    const resp = await fetch('/api/settings');
+    const resp = await fetch('api/settings');
     settings = await resp.json();
 
     document.getElementById('settings-provider').value = settings.provider || 'google';
@@ -1907,7 +1907,7 @@ async function saveSettings() {
         }
     };
 
-    await fetch('/api/settings', {
+    await fetch('api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -1917,7 +1917,7 @@ async function saveSettings() {
 
 async function resetPrompts() {
     if (!confirm('Reset prompts to defaults?')) return;
-    await fetch('/api/settings/reset-prompts', { method: 'POST' });
+    await fetch('api/settings/reset-prompts', { method: 'POST' });
     loadSettings();
     showToast('Prompts reset to defaults', 'success');
 }
@@ -1952,7 +1952,7 @@ async function uploadCSV() {
     }
 
     // We need an active question to add responses to
-    const activeResp = await fetch('/api/active');
+    const activeResp = await fetch('api/active');
     const active = await activeResp.json();
     if (!active.id) {
         showToast('Activate a question first, then upload', 'error');
@@ -1967,7 +1967,7 @@ async function uploadCSV() {
         if (!answer) continue;
         const name = nameCol >= 0 ? cols[nameCol]?.trim() : null;
 
-        await fetch('/api/respond', {
+        await fetch('api/respond', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, answer })
