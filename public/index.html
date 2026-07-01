@@ -1578,7 +1578,7 @@ async function loadCollectView() {
 
     // Generate QR code
     const qrDiv = document.getElementById('qr-code');
-    const respondUrl = `${window.location.origin}/respond.html`;
+    const respondUrl = new URL('respond.html', window.location.href).href;
     const qr = qrcode(0, 'M');
     qr.addData(respondUrl);
     qr.make();
