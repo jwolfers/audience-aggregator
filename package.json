@@ -9,6 +9,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "prompt-store": "github:jwolfers/prompt-store",
     "uuid": "^9.0.0"
   }
 }

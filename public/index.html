@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <link rel="stylesheet" href="prompt-kit/settings-kit.css">
+    <script src="prompt-kit/settings-kit.js"></script>
     <style>
 /* ─── Variables ───────────────────────────────────────────────────── */
 :root {
@@ -1163,8 +1165,7 @@ body {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Model</label>
-                    <input type="text" class="form-input" id="settings-model" placeholder="gemini-2.5-flash">
-                    <div class="form-hint" id="model-suggestions"></div>
+                    <select class="form-select" id="settings-model"></select>
                 </div>
             </div>
         </div>
@@ -1853,24 +1854,52 @@ document.addEventListener('keydown', e => {
 });
 
 // ─── Settings ───────────────────────────────────────────────────────
-const MODEL_SUGGESTIONS = {
-    google: 'Suggestions: gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro',
-    openai: 'Suggestions: gpt-4.1-mini, gpt-4.1-nano, gpt-4o-mini',
-    anthropic: 'Suggestions: claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-6'
-};
-
 const MODEL_DEFAULTS = {
     google: 'gemini-2.5-flash',
     openai: 'gpt-4.1-mini',
     anthropic: 'claude-haiku-4-5-20251001'
 };
 
+let modelRegistry = null; // PromptKit model registry (fetched once)
+
+// Populate the model <select> from the registry, filtered to the given
+// provider. A saved value that isn't in the registry is preserved as a
+// "(current)" option (PromptKit never silently drops a model choice).
+function populateModelSelect(provider, value) {
+    const sel = document.getElementById('settings-model');
+    if (modelRegistry && window.PromptKit) {
+        PromptKit.modelSelect(sel, { registry: modelRegistry, provider, caps: 'text', value });
+    } else {
+        // Registry unavailable (offline / kit failed to load): keep the
+        // current value as the only option so nothing is lost.
+        sel.innerHTML = '';
+        const o = document.createElement('option');
+        o.value = value || '';
+        o.textContent = value || '';
+        o.selected = true;
+        sel.appendChild(o);
+    }
+}
+
+function registryHasModel(provider, id) {
+    return !!(modelRegistry && id && modelRegistry.models.some(m =>
+        m.provider === provider && m.id === id && m.caps.includes('text')));
+}
+
 async function loadSettings() {
     const resp = await fetch('api/settings');
     settings = await resp.json();
 
+    if (!modelRegistry && window.PromptKit) {
+        try {
+            modelRegistry = await PromptKit.fetchRegistry('api/model-registry');
+        } catch (e) {
+            console.warn('Model registry unavailable:', e);
+        }
+    }
+
     document.getElementById('settings-provider').value = settings.provider || 'google';
-    document.getElementById('settings-model').value = settings.model || 'gemini-2.5-flash';
+    populateModelSelect(settings.provider || 'google', settings.model || 'gemini-2.5-flash');
     document.getElementById('settings-name-display').value = settings.defaultNameDisplay || 'first_last_initial';
     document.getElementById('settings-system-prompt').value = settings.systemPrompt || '';
     document.getElementById('settings-analysis-prompt').value = settings.analysisPromptTemplate || '';
@@ -1879,18 +1908,20 @@ async function loadSettings() {
     document.getElementById('key-google').value = settings.apiKeys?.google || '';
     document.getElementById('key-openai').value = settings.apiKeys?.openai || '';
     document.getElementById('key-anthropic').value = settings.apiKeys?.anthropic || '';
-
-    onProviderChange();
 }
 
 function onProviderChange() {
     const provider = document.getElementById('settings-provider').value;
-    document.getElementById('model-suggestions').textContent = MODEL_SUGGESTIONS[provider] || '';
-    // Auto-fill model if empty or if switching providers
-    const modelInput = document.getElementById('settings-model');
-    if (!modelInput.value || Object.values(MODEL_DEFAULTS).includes(modelInput.value)) {
-        modelInput.value = MODEL_DEFAULTS[provider] || '';
+    // Keep the saved model when it belongs to the chosen provider; otherwise
+    // pre-select the provider default when the registry knows it, else the
+    // first registry model for that provider.
+    let value = '';
+    if (settings && settings.provider === provider && settings.model) {
+        value = settings.model;
+    } else if (registryHasModel(provider, MODEL_DEFAULTS[provider]) || !modelRegistry) {
+        value = MODEL_DEFAULTS[provider] || '';
     }
+    populateModelSelect(provider, value);
 }
 
 async function saveSettings() {

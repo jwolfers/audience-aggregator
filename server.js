@@ -3,6 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const { createPromptStore, kitMiddleware, modelRegistry } = require('prompt-store');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -49,6 +50,81 @@ Return JSON in this exact structure:
   ]
 }`
 };
+
+// ─── Git-backed prompt store (Platypus prompt architecture) ─────────
+// Prose prompts live as one file per prompt in prompts/*.md; the GitHub repo
+// is the source of truth (web edits commit via the Contents API, local edits
+// are plain git). Config (provider, model, API keys, name display) stays in
+// DATA_DIR settings.json exactly as before. Factory reset = the
+// DEFAULT_SETTINGS constants above; finer-grained undo = git history on
+// prompts/*.md.
+const store = createPromptStore({
+    owner: 'jwolfers',
+    repo: 'audience-aggregator',
+    branch: 'master',
+    dir: 'prompts',
+    // Contents:R/W PAT on the gateway (PROMPT_EDIT_TOKEN), falling back to
+    // GITHUB_TOKEN. With neither set (local dev), writes go to the local
+    // prompts/ files for you to git-commit.
+    token: () => process.env.PROMPT_EDIT_TOKEN || process.env.GITHUB_TOKEN || '',
+    secret: () => process.env.PROMPT_EDIT_SECRET || '',
+    localDir: path.join(__dirname, 'prompts'), // the git checkout — fast reads + write-through
+    author: { name: 'Platypus Prompt Editor', email: 'bot@platypuseconomics.com' },
+    allowedOrigins: ['https://tools.platypuseconomics.com'],
+});
+
+// settings field -> git-backed prompt file
+const PROSE_FIELDS = {
+    systemPrompt: 'system-prompt.md',
+    analysisPromptTemplate: 'analysis-prompt-template.md',
+};
+
+// Config from DATA_DIR settings.json with the prose prompts overlaid from the
+// git-backed prompts/*.md files (falling back to whatever is in the JSON,
+// then to the defaults, so the app still works if a file is missing).
+function getSettings() {
+    const cfg = readJSON(SETTINGS_FILE) || { ...DEFAULT_SETTINGS };
+    for (const [field, file] of Object.entries(PROSE_FIELDS)) {
+        const md = store.readSync(file);
+        if (md !== null) cfg[field] = md;
+        else if (typeof cfg[field] !== 'string') cfg[field] = DEFAULT_SETTINGS[field];
+    }
+    return cfg;
+}
+
+// Split an incoming settings blob: prose prompts → git-backed store (commit on
+// the gateway, local file in dev); config fields → DATA_DIR settings.json.
+async function saveSettingsSplit(updates) {
+    const current = readJSON(SETTINGS_FILE) || { ...DEFAULT_SETTINGS };
+    const proseWrites = [];
+
+    for (const [field, file] of Object.entries(PROSE_FIELDS)) {
+        if (typeof updates[field] === 'string') {
+            proseWrites.push(store.write(file, updates[field], {
+                message: `Edit ${field} via Audience Aggregator settings`,
+            }));
+        }
+    }
+
+    // Merge API keys carefully (don't overwrite with masked values)
+    if (updates.apiKeys) {
+        current.apiKeys = current.apiKeys || {};
+        Object.keys(updates.apiKeys).forEach(key => {
+            if (updates.apiKeys[key] && !updates.apiKeys[key].startsWith('••••')) {
+                current.apiKeys[key] = updates.apiKeys[key];
+            }
+        });
+    }
+
+    // Merge other config settings (prompts are handled by the store above)
+    const allowed = ['provider', 'model', 'defaultNameDisplay'];
+    allowed.forEach(key => {
+        if (updates[key] !== undefined) current[key] = updates[key];
+    });
+
+    await Promise.all(proseWrites);
+    writeJSON(SETTINGS_FILE, current);
+}
 
 // Bootstrap data directories and files
 function bootstrap() {
@@ -331,7 +407,7 @@ app.post('/api/analyze/:id', async (req, res) => {
         const data = getResponses(req.params.id);
         if (data.responses.length === 0) return res.status(400).json({ error: 'No responses to analyze' });
 
-        const settings = readJSON(SETTINGS_FILE);
+        const settings = getSettings();
 
         // Build responses text
         const responsesText = data.responses.map((r, i) => {
@@ -391,7 +467,7 @@ app.get('/api/analysis/:id', (req, res) => {
 // ─── Settings API ───────────────────────────────────────────────────
 
 app.get('/api/settings', (req, res) => {
-    const settings = readJSON(SETTINGS_FILE);
+    const settings = getSettings();
     // Mask API keys for security
     const masked = { ...settings };
     if (masked.apiKeys) {
@@ -404,38 +480,37 @@ app.get('/api/settings', (req, res) => {
     res.json(masked);
 });
 
-app.put('/api/settings', (req, res) => {
-    const current = readJSON(SETTINGS_FILE);
-    const updates = req.body;
-
-    // Merge API keys carefully (don't overwrite with masked values)
-    if (updates.apiKeys) {
-        Object.keys(updates.apiKeys).forEach(key => {
-            if (updates.apiKeys[key] && !updates.apiKeys[key].startsWith('••••')) {
-                current.apiKeys[key] = updates.apiKeys[key];
-            }
-        });
-        delete updates.apiKeys;
+app.put('/api/settings', async (req, res) => {
+    try {
+        await saveSettingsSplit(req.body || {});
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Settings save error:', err);
+        res.status(500).json({ error: err.message });
     }
-
-    // Merge other settings
-    const allowed = ['provider', 'model', 'defaultNameDisplay', 'systemPrompt', 'analysisPromptTemplate'];
-    allowed.forEach(key => {
-        if (updates[key] !== undefined) current[key] = updates[key];
-    });
-
-    writeJSON(SETTINGS_FILE, current);
-    res.json({ success: true });
 });
 
-// Reset prompts to defaults
-app.post('/api/settings/reset-prompts', (req, res) => {
-    const current = readJSON(SETTINGS_FILE);
-    current.systemPrompt = DEFAULT_SETTINGS.systemPrompt;
-    current.analysisPromptTemplate = DEFAULT_SETTINGS.analysisPromptTemplate;
-    writeJSON(SETTINGS_FILE, current);
-    res.json({ success: true });
+// Reset prompts to factory defaults (the DEFAULT_SETTINGS constants).
+// For finer-grained undo, use the git history of prompts/*.md.
+app.post('/api/settings/reset-prompts', async (req, res) => {
+    try {
+        await Promise.all(Object.entries(PROSE_FIELDS).map(([field, file]) =>
+            store.write(file, DEFAULT_SETTINGS[field], {
+                message: `Reset ${field} to default via Audience Aggregator settings`,
+            })
+        ));
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Prompt reset error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
+
+// ─── Prompt store & model registry ──────────────────────────────────
+
+app.use('/api/prompts', store.router);   // list/get/put/history/revert
+app.use('/prompt-kit', kitMiddleware()); // serves settings-kit.css/js
+app.get('/api/model-registry', (_req, res) => res.json(modelRegistry.registryJson()));
 
 // ─── Start ──────────────────────────────────────────────────────────
 
